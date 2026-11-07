@@ -36,3 +36,17 @@ Open http://localhost:3000.
 
 ## Production safeguards still required
 Before offering this as a multi-client SaaS, implement authentication and tenant isolation, persistent storage, provider usage limits and audit logs. For outreach, add human approval before sends, sender authentication, unsubscribe links, suppression lists, bounce handling, rate limits, and applicable privacy-law checks (including Nigeria's NDPA where relevant). Do not send unsolicited bulk email.
+
+
+## Cloud database foundation (Supabase)
+
+A starter multi-workspace schema is included at `supabase/migrations/202611070001_initial_schema.sql`. It creates workspaces and memberships, companies, leads, draft campaigns, email suppression records, and outreach event history. Row Level Security policies scope records to a user's workspace. New Supabase Auth users automatically receive a private default workspace.
+
+To activate this database foundation:
+1. Create a Supabase project at https://supabase.com/.
+2. Open the project's SQL Editor.
+3. Open the migration file in this repository, copy its complete SQL, paste it into SQL Editor, and run it.
+4. Keep the Supabase project URL and anon/publishable key private to your deployment environment; never commit service-role keys.
+5. The current dashboard still uses browser storage for discovered results. The schema is a foundation and is not yet wired into the dashboard or authentication flow.
+
+Do not invite customers or store production personal data until the Supabase migration has run and the app's authenticated database integration has been implemented and tested.
