@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const website = String(body?.website || "").trim().slice(0, 200);
     const offer = String(body?.offer || "").trim().slice(0, 500);
     if (!company || !offer) return NextResponse.json({ error: "Company and your product or service offer are required." }, { status: 400 });
-    const greeting = person ? `Hello ${person.split(/\\s+/)[0]},` : "Hello,";
+    const greeting = person ? `Hello ${person.split(/\s+/)[0]},` : "Hello,";
     const subject = `A quick question for ${company}`;
     const bodyText = [
       greeting,
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       "Best regards,",
       "[Your name]",
       "[Your business / contact details]"
-    ].join("\\n");
+    ].join("\n");
     return NextResponse.json({ subject, body: bodyText, note: "Draft only. Review accuracy, lawful basis and recipient expectations before sending. No email has been sent." });
   } catch {
     return NextResponse.json({ error: "Could not prepare this draft. Please try again." }, { status: 400 });
