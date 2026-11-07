@@ -8,7 +8,8 @@ const sample:Lead[]=[
 {company:"UrbanNest Properties",person:"Sample Contact C",role:"Marketing Lead",email:"contact-c@example.invalid",status:"Sample record",score:82,source:"Illustrative data"}];
 export default function Home(){
 const [active,setActive]=useState("Overview"),[url,setUrl]=useState(""),[goal,setGoal]=useState("Find companies likely to need my product or service"),[notice,setNotice]=useState(""),[leads]=useState(sample),[query,setQuery]=useState(""),[showNew,setShowNew]=useState(false),[mobileNav,setMobileNav]=useState(false),[analysing,setAnalysing]=useState(false),[profile,setProfile]=useState<any>(null),[targetQuery,setTargetQuery]=useState(""),[offerText,setOfferText]=useState(""),[discovering,setDiscovering]=useState(false),[discovered,setDiscovered]=useState<any[]>([]),[contactSearch,setContactSearch]=useState("");
-const [draft,setDraft]=useState<any>(null),[drafting,setDrafting]=useState("");\nconst [storageReady,setStorageReady]=useState(false);
+const [draft,setDraft]=useState<any>(null),[drafting,setDrafting]=useState("");
+const [storageReady,setStorageReady]=useState(false);
 useEffect(()=>{try{const saved=localStorage.getItem("leadpilot-discovered-v1");if(saved){const parsed=JSON.parse(saved);if(Array.isArray(parsed))setDiscovered(parsed);}}catch{ /* Ignore damaged or unavailable browser storage. */ }finally{setStorageReady(true);}},[]);
 useEffect(()=>{if(!storageReady)return;try{localStorage.setItem("leadpilot-discovered-v1",JSON.stringify(discovered));}catch{setNotice("Browser storage is full. Export your contacts CSV to keep a backup.");}},[discovered,storageReady]);
 const filtered=useMemo(()=>leads.filter(l=>[l.company,l.person,l.role,l.email].join(" ").toLowerCase().includes(query.toLowerCase())),[leads,query]);
