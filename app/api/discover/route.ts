@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     if (query.length < 8 || query.length > 500) return NextResponse.json({ error: "Describe your ideal customers in 8–500 characters." }, { status: 400 });
     const offer = String(body?.offer || "").trim().slice(0, 500);
     const combined = (query + " " + offer).toLowerCase();
-    const erpTerms = /\\berp\\b|enterprise resource planning|inventory|accounting software|procurement|warehouse|stock management|business management software/.test(combined);
+    const erpTerms = /\berp\b|enterprise resource planning|inventory|accounting software|procurement|warehouse|stock management|business management software/.test(combined);
     const industryMap = [
       { test: /manufactur|factory|production|industrial/, values: ["Manufacturing"] },
       { test: /wholesale|distribut|import|export/, values: ["Wholesale", "Import and Export"] },
