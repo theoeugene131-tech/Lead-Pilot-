@@ -20,6 +20,9 @@ export async function POST(req: NextRequest) {
     const query = String(body?.query || "").trim();
     if (query.length < 8 || query.length > 500) return NextResponse.json({ error: "Describe your ideal customers in 8–500 characters." }, { status: 400 });
     const offer = String(body?.offer || "").trim().slice(0, 500);
+    const location = String(body?.location || "").trim().slice(0, 120);
+    const allowedLocationTypes = ["city", "state", "country", "region", "subregion"];
+    const locationType = allowedLocationTypes.includes(String(body?.locationType || "")) ? String(body.locationType) : "country";
     const combined = (query + " " + offer).toLowerCase();
     const erpTerms = /\berp\b|enterprise resource planning|inventory|accounting software|procurement|warehouse|stock management|business management software/.test(combined);
     const industryMap = [
@@ -36,6 +39,10 @@ export async function POST(req: NextRequest) {
       ? ["Chief Executive Officer", "Managing Director", "Chief Operating Officer", "Chief Financial Officer", "Finance Director", "Head of Finance", "Finance Manager", "Operations Director", "Head of Operations", "Operations Manager", "IT Director", "IT Manager", "Chief Information Officer", "Procurement Manager", "Supply Chain Manager", "Warehouse Manager", "ERP Manager"]
       : ["Founder", "Co-Founder", "Chief Executive Officer", "Managing Director", "Chief Operating Officer", "Head of Operations", "Finance Director", "Chief Financial Officer", "Head of Finance", "Director"];
     const filters: any = { prospect: { job_titles: { include: titles }, management_levels: { include: ["c_level", "director_level", "vp_level", "manager_level"] } } };
+    if (location) {
+      filters.prospect.locations = { include: { locality: [location], location_type: [locationType] } };
+      filters.company = { ...(filters.company || {}), locations: { include: { locality: [location], location_type: [locationType] } } };
+    }
     if (erpTerms) filters.prospect.departments = { include: ["operations", "finance_administration", "it_is"] };
     if (industries.length) filters.company = { industries: { include: industries } };
     const token = await getToken();
@@ -87,7 +94,7 @@ export async function POST(req: NextRequest) {
       });
     }
     const companies = Array.from(grouped.values()).slice(0, 30);
-    return NextResponse.json({ companies, prospectCount: prospects.length, totalMatches: Number(result?.data?.total || prospects.length), filtersApplied: industries.length ? "Industry filters: " + industries.join(", ") + ". Decision-maker roles focus on operations, finance and IT." : "Decision-maker job titles and seniority filters applied. Add a specific industry or location to narrow results.", note: "Prospect profiles are from Snov.io. Email addresses are hidden until you choose to reveal an individual contact." });
+    return NextResponse.json({ companies, prospectCount: prospects.length, totalMatches: Number(result?.data?.total || prospects.length), filtersApplied: (industries.length ? "Industry filters: " + industries.join(", ") + ". " : "") + (location ? "Location: " + location + " (" + locationType + "). " : "Worldwide location targeting; no geographic restriction applied. ") + "Decision-maker job titles and seniority filters applied.", note: "Prospect profiles are from Snov.io. Email addresses are hidden until you choose to reveal an individual contact." });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not complete the Snov.io search.";
     return NextResponse.json({ error: message }, { status: 502 });
