@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ArrowUpRight, BarChart3, Bell, Building2, Check, ChevronDown, CircleHelp, Download, Globe2, LayoutDashboard, Mail, Menu, Plus, Search, Send, Settings2, ShieldCheck, Sparkles, Target, Users, X } from "lucide-react";
 export default function Home(){
 const [active,setActive]=useState("Overview"),[url,setUrl]=useState(""),[goal,setGoal]=useState("Find companies likely to need my product or service"),[notice,setNotice]=useState(""),[showNew,setShowNew]=useState(false),[mobileNav,setMobileNav]=useState(false),[analysing,setAnalysing]=useState(false),[profile,setProfile]=useState<any>(null),[targetQuery,setTargetQuery]=useState(""),[offerText,setOfferText]=useState(""),[discovering,setDiscovering]=useState(false),[discovered,setDiscovered]=useState<any[]>([]),[contactSearch,setContactSearch]=useState("");
