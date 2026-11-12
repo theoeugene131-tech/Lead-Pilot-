@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       filters.company = { ...(filters.company || {}), locations: { include: { locality: [location], location_type: [locationType] } } };
     }
     if (erpTerms) filters.prospect.departments = { include: ["operations", "finance_administration", "it_is"] };
-    if (industries.length) filters.company = { industries: { include: industries } };
+    if (industries.length) filters.company = { ...(filters.company || {}), industries: { include: industries } };
     const token = await getToken();
     const start = await fetch("https://api.snov.io/v2/database-search/prospects/start", {
       method: "POST",
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
         location: String(p?.location || ""),
         industry: String(p?.industry || company.industry || ""),
         prospectHash: hash,
-        linkedin: ""
+        linkedin: String(p?.linkedin_url || "")
       });
     }
     const companies = Array.from(grouped.values()).slice(0, 30);
