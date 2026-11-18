@@ -60,14 +60,80 @@ export async function POST(req: NextRequest) {
     const headings = [...html.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/gi)].map(m => cleanText(m[1])).filter(Boolean).slice(0, 4);
     const pageText = cleanText(html);
     const summary = description || headings[0] || pageText.slice(0, 420) || "No business description was found on the homepage.";
-    const hints = [
-      { pattern: /software|platform|saas|app|technology|api/i, segment: "Technology and software buyers", roles: "CTO, Head of IT, Product Manager, Operations Director" },
-      { pattern: /consult|agency|marketing|design|creative/i, segment: "Businesses buying professional services", roles: "Founder, Managing Director, Marketing Director" },
-      { pattern: /wholesale|distribut|manufactur|supplier/i, segment: "Retailers, distributors and procurement teams", roles: "Procurement Manager, Operations Director, Business Owner" },
-      { pattern: /property|real estate|estate|construction/i, segment: "Property and construction businesses", roles: "Managing Director, Property Manager, Development Director" },
-      { pattern: /education|school|training|course/i, segment: "Schools, training providers and education teams", roles: "School Administrator, Training Manager, Director" }
+    const siteText = (title + " " + summary + " " + headings.join(" ") + " " + pageText.slice(0, 5000)).toLowerCase();
+    const profiles = [
+      {
+        id: "receivables",
+        pattern: /invoice|accounts receivable|payment reminder|debt collection|collections|overdue payment|late payment|credit control|billing software/,
+        offer: `\u0000`,
+        segment: "B2B businesses that issue invoices, sell on credit or regularly follow up overdue customer payments",
+        industries: "Distributors, wholesalers, manufacturers, professional service firms, agencies and other B2B suppliers",
+        roles: "Business Owner, CEO, CFO, Finance Director, Financial Controller, Accounts Receivable Manager, Credit Control Manager"
+      },
+      {
+        id: "software",
+        pattern: /software|platform|saas|app|technology|api/,
+        segment: "Small and medium-sized organisations that need software to improve business operations",
+        industries: "Technology, professional services, retail and other digitally active businesses",
+        roles: "Founder, CEO, CTO, Head of IT, Operations Director, Product Manager"
+      },
+      {
+        id: "professional-services",
+        pattern: /consult|agency|marketing|design|creative/,
+        segment: "Businesses seeking specialist professional, consulting or creative services",
+        industries: "Professional services, marketing, media, technology and growing SMEs",
+        roles: "Founder, Managing Director, CEO, Marketing Director, Operations Director"
+      },
+      {
+        id: "wholesale",
+        pattern: /wholesale|distribut|manufactur|supplier|supply chain/,
+        segment: "Retailers and organisations that buy, distribute or manufacture products",
+        industries: "Wholesale, distribution, manufacturing, retail and logistics",
+        roles: "Procurement Manager, Operations Director, Supply Chain Manager, Managing Director"
+      },
+      {
+        id: "property",
+        pattern: /property|real estate|estate agent|construction/,
+        segment: "Property, real estate and construction organisations",
+        industries: "Real estate, property management, construction and facilities management",
+        roles: "Managing Director, Property Manager, Operations Director, Development Director"
+      },
+      {
+        id: "education",
+        pattern: /education|school|training|course|learning management/,
+        segment: "Schools, training providers and organisations delivering education",
+        industries: "Education, vocational training, corporate learning and professional development",
+        roles: "School Administrator, Principal, Training Manager, Learning and Development Director"
+      },
+      {
+        id: "ecommerce",
+        pattern: /ecommerce|e-commerce|online store|shopify|online retail/,
+        segment: "Online retailers and ecommerce brands seeking to grow sales and operations",
+        industries: "Ecommerce, retail, consumer goods and online marketplaces",
+        roles: "Founder, Ecommerce Manager, Head of Growth, Marketing Director, Operations Manager"
+      },
+      {
+        id: "cybersecurity",
+        pattern: /cyber.?security|information security|threat detection|data protection/,
+        segment: "Organisations that need to protect business systems, networks and customer data",
+        industries: "Financial services, healthcare, technology, government suppliers and enterprise IT",
+        roles: "CISO, IT Director, Head of Information Security, CTO, IT Manager"
+      }
     ];
-    const match = hints.find(h => h.pattern.test(title + " " + summary + " " + pageText.slice(0, 2500)));
+    const matched = profiles.find(item => item.pattern.test(siteText));
+    const businessLabel = title || url.hostname;
+    const offerText = matched?.id === "receivables"
+      ? `${businessLabel} provides invoice and accounts receivable tools to help businesses track invoices, follow up overdue payments and manage customer collections.`
+      : `${businessLabel}: ${summary}`;
+    const suggestedIdealCustomer = matched
+      ? `${matched.segment}. Relevant industries: ${matched.industries}. Target decision-makers: ${matched.roles}.`
+      : `Businesses likely to benefit from ${summary}. Start with organisations in the industries most closely related to the product or service, and target the people responsible for buying or managing it.`;
+    const suggestedSegments = matched
+      ? [matched.segment, matched.industries]
+      : [`Businesses likely to need ${businessLabel}`];
+    const suggestedDecisionMakers = matched
+      ? matched.roles.split(", ")
+      : ["Founder", "CEO", "Managing Director", "Department Head"];
     return NextResponse.json({
       website: url.origin, title, description: summary, headings,
       businessSnapshot: pageText.slice(0, 1200),
