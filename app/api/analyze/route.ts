@@ -65,7 +65,6 @@ export async function POST(req: NextRequest) {
       {
         id: "receivables",
         pattern: /invoice|accounts receivable|payment reminder|debt collection|collections|overdue payment|late payment|credit control|billing software/,
-        offer: `\u0000`,
         segment: "B2B businesses that issue invoices, sell on credit or regularly follow up overdue customer payments",
         industries: "Distributors, wholesalers, manufacturers, professional service firms, agencies and other B2B suppliers",
         roles: "Business Owner, CEO, CFO, Finance Director, Financial Controller, Accounts Receivable Manager, Credit Control Manager"
