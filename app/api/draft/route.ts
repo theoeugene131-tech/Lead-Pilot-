@@ -10,8 +10,12 @@ export async function POST(req: NextRequest) {
     const role = String(body?.role || "").trim().slice(0, 120);
     const website = String(body?.website || "").trim().slice(0, 200);
     const offer = String(body?.offer || "").trim().slice(0, 500);
-    if (!company || !offer) return NextResponse.json({ error: "Company and your product or service offer are required." }, { status: 400 });
-    const greeting = person ? `Hello ${person.split(/\\s+/)[0]},` : "Hello,";
+    if (!company || !offer) {
+      return NextResponse.json({ error: "Company and your product or service offer are required. Please check your business offer above." }, { status: 400 });
+    }
+
+    const firstName = person ? person.trim().split(/\s+/)[0] : "";
+    const greeting = firstName ? `Hello ${firstName},` : "Hello,";
     const subject = `A quick question for ${company}`;
     const bodyText = [
       greeting,
@@ -27,8 +31,13 @@ export async function POST(req: NextRequest) {
       "Best regards,",
       "[Your name]",
       "[Your business / contact details]"
-    ].join("\\n");
-    return NextResponse.json({ subject, body: bodyText, note: "Draft only. Review accuracy, lawful basis and recipient expectations before sending. No email has been sent." });
+    ].join("\n");
+
+    return NextResponse.json({
+      subject,
+      body: bodyText,
+      note: "Draft only. Review accuracy, lawful basis and recipient expectations before sending. No email has been sent."
+    });
   } catch {
     return NextResponse.json({ error: "Could not prepare this draft. Please try again." }, { status: 400 });
   }
