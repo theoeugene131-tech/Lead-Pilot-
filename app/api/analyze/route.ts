@@ -137,9 +137,12 @@ export async function POST(req: NextRequest) {
       website: url.origin, title, description: summary, headings,
       businessSnapshot: pageText.slice(0, 1200),
       goal,
-      suggestedSegments: [match?.segment || "Companies with a clear need for your stated offer"],
-      suggestedDecisionMakers: [match?.roles || "Founder, CEO, Managing Director, Department Head"],
-      researchStatus: "Website analysis complete. No third-party lead database has been queried."
+      suggestedOffer: offerText,
+      suggestedIdealCustomerDescription: suggestedIdealCustomer,
+      suggestedSegments,
+      suggestedDecisionMakers,
+      generationMethod: "Automatically generated from the public website content. Review and edit these suggestions before searching.",
+      researchStatus: "Website analysis complete. Your offer and ideal customer profile have been generated. No third-party lead database has been queried."
     });
   } catch (error) {
     const message = error instanceof Error && error.name === "TimeoutError" ? "The website took too long to respond. Try again." : "We could not analyse that website. Check the address and try again.";
