@@ -31,7 +31,8 @@ Open http://localhost:3000.
 ## Current limitations
 - Website analysis is a lightweight public-homepage parser, not a full AI business analysis.
 - Hunter Discover returns matching companies and estimated email counts; contact details are retrieved only when the user explicitly selects a company and requests a contact search.
-- No automated email sending, sequences, follow-ups, inbox/reply tracking, database persistence, authentication, billing, or multi-tenant account separation is implemented yet.
+- A protected, owner-approved single-email send endpoint is available through Resend once provider credentials and a verified sender domain are configured. It is not a bulk campaign system.
+- Scheduled sequences, follow-ups, inbox/reply tracking, persistent campaign records, full user authentication, billing, and multi-tenant account separation are not implemented yet.
 - The sample contacts are fictional placeholders using reserved `.invalid` email domains. They are not real contacts.
 
 ## Production safeguards still required
@@ -50,3 +51,16 @@ To activate this database foundation:
 5. The current dashboard still uses browser storage for discovered results. The schema is a foundation and is not yet wired into the dashboard or authentication flow.
 
 Do not invite customers or store production personal data until the Supabase migration has run and the app's authenticated database integration has been implemented and tested.
+
+## Configure the first approved email send
+
+1. Create a Resend account at https://resend.com/ and add the business sending domain.
+2. Complete the DNS verification records Resend provides with the domain's DNS host. Do not send until Resend marks the domain verified and the mailbox owner has authorised its use.
+3. Create a Resend API key.
+4. In Vercel → Project Settings → Environment Variables, add:
+   - `RESEND_API_KEY`: the private Resend API key.
+   - `RESEND_FROM_EMAIL`: the full verified sender address (for example, `operations@yourdomain.com`).
+   - `LEADPILOT_SEND_TOKEN`: a long, unique random secret used to approve sending from the dashboard.
+5. Redeploy after adding the variables.
+
+The first sending workflow sends one reviewed email at a time, requires explicit confirmation and a private owner token, and requires an unsubscribe instruction in the message. It does not yet provide bulk campaigns, scheduling, follow-ups, reply tracking, durable suppression lists, or complete authentication/rate limiting. Keep the dashboard private while this initial workflow is being tested. Only contact people where you have an appropriate lawful basis and respect opt-outs and provider terms.
