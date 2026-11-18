@@ -8,7 +8,7 @@ LeadPilot AI is a prospect research and outreach workspace built with Next.js.
 - Extracts public homepage title, description and headings, then suggests an initial customer segment and decision-maker roles.
 - Hunter-powered company discovery through `POST /api/discover` using a natural-language target-market description.
 - Opt-in Hunter Domain Search through `POST /api/contacts` to retrieve professional contact details for a selected company. This can consume provider credits.
-- Search and CSV export for the clearly labelled illustrative sample records.
+- Search and CSV export for real contacts retrieved from selected companies.
 
 ## Configure Hunter
 1. Create or sign in to a Hunter account at https://hunter.io/.
@@ -19,7 +19,7 @@ LeadPilot AI is a prospect research and outreach workspace built with Next.js.
 
 For local development, copy `.env.example` to `.env.local` and add the key there. Never commit a real API key to GitHub.
 
-Hunter Discover access and email lookup limits depend on the Hunter account plan and available credits. Review the provider's pricing and terms before use.
+Hunter Discover access and email lookup limits depend on the Hunter account plan and available credits. Discover finds companies; Domain Search is a separate, credit-consuming step to retrieve professional email addresses. Review the provider's pricing and terms before use.
 
 ## Run locally
 ```bash
