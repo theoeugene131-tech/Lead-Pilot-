@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Company and your product or service offer are required. Please check your business offer above." }, { status: 400 });
     }
 
-    const firstName = person ? person.split(/\\s+/)[0] : "";
+    const firstName = person ? person.split(/\s+/)[0] : "";
     const greeting = firstName ? `Hello ${firstName},` : "Hello,";
     const subject = `A practical idea for ${company}`;
     const relevance = role
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       "[Your business]",
       "[Your contact details]",
       website ? `Website: ${website}` : ""
-    ].filter(Boolean).join("\\n");
+    ].filter(Boolean).join("\n");
 
     return NextResponse.json({
       subject,
