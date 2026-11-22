@@ -41,7 +41,7 @@ Before offering this as a multi-client SaaS, implement authentication and tenant
 
 ## Cloud database foundation (Supabase)
 
-A starter multi-workspace schema is included at `supabase/migrations/202611070001_initial_schema.sql`. It creates workspaces and memberships, companies, leads, draft campaigns, email suppression records, and outreach event history. Row Level Security policies scope records to a user's workspace. New Supabase Auth users automatically receive a private default workspace.
+The canonical starter multi-workspace schema is `supabase/migrations/202611070001_initial_schema.sql`. It creates workspaces and memberships, companies, leads, draft campaigns, email suppression records, and outreach event history. Row Level Security policies scope records to a user's workspace. New Supabase Auth users automatically receive a private default workspace. The file `202611210001_initial_saas_schema.sql` is intentionally a no-op because it was a conflicting earlier draft; do not run it.
 
 To activate this database foundation:
 1. Create a Supabase project at https://supabase.com/.
