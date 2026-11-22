@@ -1,14 +1,14 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const router = useRouter();
-  const params = useSearchParams();
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     setBusy(true); setError("");
@@ -19,7 +19,7 @@ export default function LoginPage() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Sign-in failed.");
-      const next = params.get("next") || "/";
+      const next = new URLSearchParams(window.location.search).get("next") || "/";
       router.replace(next.startsWith("/") && !next.startsWith("//") ? next : "/");
       router.refresh();
     } catch (e) {
