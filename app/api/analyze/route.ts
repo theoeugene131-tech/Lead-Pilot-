@@ -7,14 +7,46 @@ export const maxDuration = 15;
 
 function isPrivateAddress(ip: string) {
   if (net.isIPv4(ip)) {
-    const [a,b] = ip.split(".").map(Number);
-    return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) ||
-      (a === 100 && b >= 64 && b <= 127) || a >= 224;
+    const [a, b, c] = ip.split(".").map(Number);
+    return a === 0 || a === 10 || a === 127 || a >= 224 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 0) ||
+      (a === 192 && b === 168) ||
+      (a === 192 && b === 88 && c === 99) ||
+      (a === 198 && (b === 18 || b === 19)) ||
+      (a === 198 && b === 51 && c === 100) ||
+      (a === 203 && b === 0 && c === 113);
   }
+  if (!net.isIPv6(ip)) return true;
   const v = ip.toLowerCase();
-  return v === "::1" || v === "::" || v.startsWith("fc") || v.startsWith("fd") ||
-    v.startsWith("fe80:") || v.startsWith("::ffff:127.") || v.startsWith("::ffff:10.");
+  // Only globally-routable IPv6 unicast space is accepted. This excludes
+  // loopback, link-local, unique-local, multicast, mapped and transition ranges.
+  if (!/^2[0-9a-f]{3}:/.test(v)) return true;
+  return v.startsWith("2001:db8:") || v.startsWith("2001:10:") ||
+    v.startsWith("2001:20:") || v.startsWith("2002:") || v.startsWith("3fff:");
+}
+
+async function readHtmlWithLimit(response: Response, maxBytes: number) {
+  const declaredLength = Number(response.headers.get("content-length") || 0);
+  if (declaredLength > maxBytes) throw new Error("PAGE_TOO_LARGE");
+  if (!response.body) throw new Error("EMPTY_RESPONSE");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let total = 0;
+  let html = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new Error("PAGE_TOO_LARGE");
+    }
+    html += decoder.decode(value, { stream: true });
+  }
+  return html + decoder.decode();
 }
 
 function getMeta(html: string, key: string, attr = "name") {
@@ -40,9 +72,13 @@ export async function POST(req: NextRequest) {
     const url = new URL(raw.startsWith("http") ? raw : "https://" + raw);
     if (!["http:", "https:"].includes(url.protocol) || url.username || url.password)
       return NextResponse.json({ error: "Only public HTTP or HTTPS websites are supported." }, { status: 400 });
-    if (["localhost", "127.0.0.1", "::1"].includes(url.hostname) || url.hostname.endsWith(".local"))
+    const hostname = url.hostname.replace(/^\\[|\\]$/g, "").toLowerCase();
+    if (hostname === "localhost" || hostname.endsWith(".localhost") ||
+        hostname.endsWith(".local") || hostname.endsWith(".internal"))
       return NextResponse.json({ error: "Private and local addresses are not allowed." }, { status: 400 });
-    const records = await lookup(url.hostname, { all: true, verbatim: true });
+    const records = net.isIP(hostname)
+      ? [{ address: hostname }]
+      : await lookup(hostname, { all: true, verbatim: true });
     if (!records.length || records.some(r => isPrivateAddress(r.address)))
       return NextResponse.json({ error: "This website resolves to a private or restricted network address." }, { status: 400 });
     const response = await fetch(url.toString(), {
@@ -54,7 +90,14 @@ export async function POST(req: NextRequest) {
     if (!response.ok) return NextResponse.json({ error: "The website could not be opened (HTTP " + response.status + ")." }, { status: 422 });
     const type = response.headers.get("content-type") || "";
     if (!type.includes("text/html")) return NextResponse.json({ error: "That address did not return a web page." }, { status: 422 });
-    const html = (await response.text()).slice(0, 1_000_000);
+    let html: string;
+    try {
+      html = await readHtmlWithLimit(response, 1_000_000);
+    } catch (error) {
+      if (error instanceof Error && error.message === "PAGE_TOO_LARGE")
+        return NextResponse.json({ error: "This website's homepage is too large to analyse. Try a simpler public page." }, { status: 413 });
+      throw error;
+    }
     const title = (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || url.hostname).replace(/<[^>]+>/g, "").trim().slice(0, 180);
     const description = getMeta(html, "description") || getMeta(html, "og:description", "property");
     const headings = [...html.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/gi)].map(m => cleanText(m[1])).filter(Boolean).slice(0, 4);
