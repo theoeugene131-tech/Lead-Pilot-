@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 
 export const runtime = "nodejs";
 
@@ -17,7 +18,9 @@ export async function POST(req: NextRequest) {
     }
 
     const suppliedToken = req.headers.get("x-leadpilot-send-token") || "";
-    if (suppliedToken.length !== expectedToken.length || !Buffer.from(suppliedToken).equals(Buffer.from(expectedToken))) {
+    const supplied = Buffer.from(suppliedToken, "utf8");
+    const expected = Buffer.from(expectedToken, "utf8");
+    if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) {
       return NextResponse.json({ error: "Sending is not authorised. Check the owner send token." }, { status: 401 });
     }
 
