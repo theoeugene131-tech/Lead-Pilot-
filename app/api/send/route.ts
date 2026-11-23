@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { createClient } from "../../../lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -49,6 +50,39 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    let sendAttemptId: string | null = null;
+    if (body?.test !== true) {
+      // Identical recipient + subject + message can only be submitted once per UTC day.
+      const day = new Date().toISOString().slice(0, 10);
+      const requestFingerprint = createHash("sha256")
+        .update([to.toLowerCase(), subject, text, day].join("\n"))
+        .digest("hex");
+      const { data: attempt, error: attemptError } = await supabase
+        .from("email_send_attempts")
+        .insert({
+          user_id: user.id,
+          recipient: to.toLowerCase(),
+          request_fingerprint: requestFingerprint,
+          status: "pending",
+        })
+        .select("id")
+        .single();
+
+      if (attemptError?.code === "23505") {
+        return NextResponse.json(
+          { error: "This same message has already been submitted to this recipient today. Check your Resend activity before trying again." },
+          { status: 409 }
+        );
+      }
+      if (attemptError || !attempt?.id) {
+        return NextResponse.json(
+          { error: "Could not reserve this send safely. Apply the latest database migration and try again." },
+          { status: 503 }
+        );
+      }
+      sendAttemptId = attempt.id;
+    }
+
     if (body?.test !== true && !/(^|\n)\s*(unsubscribe|stop receiving)\b/i.test(text)) {
       return NextResponse.json({ error: "Add a clear unsubscribe instruction before sending outreach." }, { status: 400 });
     }
@@ -70,7 +104,13 @@ export async function POST(req: NextRequest) {
 
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
+      if (sendAttemptId) {
+        await supabase.from("email_send_attempts").update({ status: "failed" }).eq("id", sendAttemptId);
+      }
       return NextResponse.json({ error: result?.message || "The email provider rejected the message." }, { status: response.status >= 500 ? 502 : 400 });
+    }
+    if (sendAttemptId) {
+      await supabase.from("email_send_attempts").update({ status: "sent", provider_message_id: result?.id || null }).eq("id", sendAttemptId);
     }
     return NextResponse.json({ success: true, id: result?.id || null });
   } catch {
