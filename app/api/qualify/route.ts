@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { lookup } from "node:dns/promises";
 import net from "node:net";
+import { enforceApiQuota } from "../../../lib/server/usage";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -45,6 +46,8 @@ export async function POST(req:NextRequest) {
     const company=String(body?.company||"").trim().slice(0,160);
     const domain=String(body?.domain||"").trim().slice(0,253);
     if(!offer||!idealCustomer||!company||!domain) return NextResponse.json({error:"Your offer, ideal customer profile, company name and website are required."},{status:400});
+    const quotaResponse=await enforceApiQuota("discover");
+    if(quotaResponse) return quotaResponse;
     const url=new URL(domain.startsWith("http")?domain:"https://"+domain);
     if(!["http:","https:"].includes(url.protocol)||url.username||url.password) return NextResponse.json({error:"Only public HTTP or HTTPS websites are supported."},{status:400});
     const host=url.hostname.toLowerCase().replace(/^\[|\]$/g,"");
