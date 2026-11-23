@@ -8,6 +8,8 @@ create table if not exists public.crm_snapshots (
 
 alter table public.crm_snapshots enable row level security;
 
+grant select, insert, update on public.crm_snapshots to authenticated;
+
 drop policy if exists "members manage CRM snapshots in their workspace" on public.crm_snapshots;
 create policy "members manage CRM snapshots in their workspace"
   on public.crm_snapshots
