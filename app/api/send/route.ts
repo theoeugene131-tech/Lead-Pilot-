@@ -1,27 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { timingSafeEqual } from "node:crypto";
+import { createClient } from "../../../lib/supabase/server";
 
 export const runtime = "nodejs";
 
 function validEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value);
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const expectedToken = process.env.LEADPILOT_SEND_TOKEN;
-    const apiKey = process.env.RESEND_API_KEY;
-    const from = process.env.RESEND_FROM_EMAIL;
-
-    if (!expectedToken || !apiKey || !from) {
-      return NextResponse.json({ error: "Email sending is not configured. Check the Resend API key, verified sender address and LeadPilot send token in Vercel." }, { status: 503 });
+    const supabase = createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
     }
 
-    const suppliedToken = req.headers.get("x-leadpilot-send-token") || "";
-    const supplied = Buffer.from(suppliedToken, "utf8");
-    const expected = Buffer.from(expectedToken, "utf8");
-    if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) {
-      return NextResponse.json({ error: "Sending is not authorised. Check the owner send token." }, { status: 401 });
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.RESEND_FROM_EMAIL;
+    if (!apiKey || !from) {
+      return NextResponse.json({ error: "Email sending is not configured. Check the Resend API key and verified sender address in Vercel." }, { status: 503 });
     }
 
     const body = await req.json();
@@ -31,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     if (body?.approved !== true) return NextResponse.json({ error: "Explicit approval is required before sending." }, { status: 400 });
     if (!validEmail(to) || !subject || !text) return NextResponse.json({ error: "A valid recipient, subject and message are required." }, { status: 400 });
-    if (body?.test !== true && !/(^|\n)\s*(unsubscribe|stop receiving)\b/i.test(text)) {
+    if (body?.test !== true && !/(^|\\n)\\s*(unsubscribe|stop receiving)\\b/i.test(text)) {
       return NextResponse.json({ error: "Add a clear unsubscribe instruction before sending outreach." }, { status: 400 });
     }
 
