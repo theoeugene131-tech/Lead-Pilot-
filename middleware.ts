@@ -3,6 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 const PUBLIC_PATHS = ["/login", "/auth/callback", "/api/auth/login", "/api/auth/logout"];
 
+type SupabaseCookieOptions = Parameters<NextResponse["cookies"]["set"]>[2];
+type SupabaseCookieToSet = {
+  name: string;
+  value: string;
+  options?: SupabaseCookieOptions;
+};
+
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
   if (PUBLIC_PATHS.includes(path) || path.startsWith("/_next/") || path === "/favicon.ico") return NextResponse.next();
@@ -19,7 +26,7 @@ export async function middleware(req: NextRequest) {
   const supabase = createServerClient(url, key, {
     cookies: {
       getAll: () => req.cookies.getAll(),
-      setAll(cookies) {
+      setAll(cookies: SupabaseCookieToSet[]) {
         cookies.forEach(({ name, value }) => req.cookies.set(name, value));
         response = NextResponse.next({ request: { headers: req.headers } });
         cookies.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
