@@ -24,8 +24,11 @@ Never expose or add the Supabase service-role key to frontend variables.
 - Email sends still require explicit approval in the request and keep the unsubscribe instruction check for non-test sends.
 - Dashboard has a sign-out control.
 
+## Phase 2: cloud CRM setup
+The dashboard now includes authenticated cloud snapshot sync for its existing company/contact CRM structure. Apply the migration `supabase/migrations/202611230001_crm_cloud_sync.sql` in the Supabase SQL Editor after the initial schema migration. The API uses the signed-in user session and the workspace membership row; row-level security limits each snapshot to members of that workspace. Browser localStorage remains as a fallback and is used to seed a new cloud workspace when no cloud snapshot exists.
+
 ## Important limitations
-This is not yet a completed SaaS migration. Leads and discovered contacts are still saved in browser localStorage; no cloud sync or cross-device CRM exists yet. Workspace provisioning and database RLS policies need testing, and leads/companies/campaigns still need to be migrated into per-workspace Supabase storage.
+Cloud sync is not active until both SQL migrations have been applied to the Supabase project and the branch has been tested and deployed. The current snapshot approach preserves the dashboard data structure, but it is not yet a normalized relational CRM: individual leads, companies, campaigns and outreach events are not separately queryable database records. Workspace provisioning, RLS isolation, first-login migration, concurrent edits and multi-user workspace behavior still require testing.
 
 ## Before deployment
 Run `npm install`, `npm run typecheck`, and `npm run build`. Test sign-up, email confirmation, sign-in, sign-out, protected page/API access, authenticated test email, and authenticated approved prospect email. These checks have not yet been run in this environment.
