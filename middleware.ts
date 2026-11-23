@@ -1,50 +1,41 @@
+import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
-const COOKIE = "leadpilot_session";
-const encoder = new TextEncoder();
-
-function base64url(bytes: Uint8Array) {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-function fromBase64url(value: string) {
-  const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((value.length + 3) % 4);
-  const binary = atob(padded);
-  return Uint8Array.from(binary, c => c.charCodeAt(0));
-}
-async function validSession(token: string, secret: string) {
-  const parts = token.split(".");
-  if (parts.length !== 2) return false;
-  try {
-    const payload = JSON.parse(new TextDecoder().decode(fromBase64url(parts[0])));
-    if (!payload || typeof payload.exp !== "number" || payload.exp < Math.floor(Date.now() / 1000)) return false;
-    const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
-    return crypto.subtle.verify("HMAC", key, fromBase64url(parts[1]), encoder.encode(parts[0]));
-  } catch { return false; }
-}
+const PUBLIC_PATHS = ["/login", "/auth/callback", "/api/auth/login", "/api/auth/logout"];
 
 export async function middleware(req: NextRequest) {
-  const password = process.env.LEADPILOT_ACCESS_PASSWORD;
-  const secret = process.env.LEADPILOT_SESSION_SECRET;
-  // Keep existing deployments reachable until the owner configures both secrets.
-  // Once configured, every page and API route is protected by the signed session.
-  if (!password || !secret) return NextResponse.next();
-
   const path = req.nextUrl.pathname;
-  if (path === "/login" || path === "/api/auth/login" || path.startsWith("/_next/") ||
-      path === "/favicon.ico" || path === "/robots.txt" || path === "/sitemap.xml") return NextResponse.next();
+  if (PUBLIC_PATHS.includes(path) || path.startsWith("/_next/") || path === "/favicon.ico") return NextResponse.next();
 
-  const token = req.cookies.get(COOKIE)?.value || "";
-  if (await validSession(token, secret)) return NextResponse.next();
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    return path.startsWith("/api/")
+      ? NextResponse.json({ error: "Authentication configuration missing." }, { status: 503 })
+      : new NextResponse("Authentication configuration missing.", { status: 503 });
+  }
 
-  if (path.startsWith("/api/")) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
-  const login = req.nextUrl.clone();
-  login.pathname = "/login";
-  login.searchParams.set("next", path);
-  return NextResponse.redirect(login);
+  let response = NextResponse.next({ request: { headers: req.headers } });
+  const supabase = createServerClient(url, key, {
+    cookies: {
+      getAll: () => req.cookies.getAll(),
+      setAll(cookies) {
+        cookies.forEach(({ name, value }) => req.cookies.set(name, value));
+        response = NextResponse.next({ request: { headers: req.headers } });
+        cookies.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+      },
+    },
+  });
+
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) {
+    if (path.startsWith("/api/")) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    const login = req.nextUrl.clone();
+    login.pathname = "/login";
+    login.searchParams.set("next", path);
+    return NextResponse.redirect(login);
+  }
+  return response;
 }
 
-export const config = {
-  matcher: ["/((?!.*\\.).*)", "/api/:path*"]
-};
+export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"] };
