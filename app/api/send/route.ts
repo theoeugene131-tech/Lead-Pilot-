@@ -28,6 +28,27 @@ export async function POST(req: NextRequest) {
 
     if (body?.approved !== true) return NextResponse.json({ error: "Explicit approval is required before sending." }, { status: 400 });
     if (!validEmail(to) || !subject || !text) return NextResponse.json({ error: "A valid recipient, subject and message are required." }, { status: 400 });
+    if (body?.test !== true) {
+      const { data: memberships, error: membershipError } = await supabase
+        .from("workspace_members")
+        .select("workspace_id")
+        .eq("user_id", user.id);
+      if (membershipError || !memberships?.length) {
+        return NextResponse.json({ error: "Could not verify your workspace before sending. Please try again." }, { status: 503 });
+      }
+      const workspaceIds = memberships.map((membership: { workspace_id: string }) => membership.workspace_id);
+      const [suppressionCheck, leadCheck] = await Promise.all([
+        supabase.from("email_suppressions").select("id").in("workspace_id", workspaceIds).ilike("email", to).limit(1),
+        supabase.from("leads").select("id").in("workspace_id", workspaceIds).ilike("email", to).in("status", ["unsubscribed", "do_not_contact"]).limit(1)
+      ]);
+      if (suppressionCheck.error || leadCheck.error) {
+        return NextResponse.json({ error: "Could not verify the unsubscribe and do-not-contact lists. Email was not sent." }, { status: 503 });
+      }
+      if ((suppressionCheck.data?.length || 0) > 0 || (leadCheck.data?.length || 0) > 0) {
+        return NextResponse.json({ error: "This address is on your workspace suppression or do-not-contact list. Email was not sent." }, { status: 409 });
+      }
+    }
+
     if (body?.test !== true && !/(^|\n)\s*(unsubscribe|stop receiving)\b/i.test(text)) {
       return NextResponse.json({ error: "Add a clear unsubscribe instruction before sending outreach." }, { status: 400 });
     }
