@@ -50,6 +50,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (body?.test !== true && !/(^|\n)\s*(unsubscribe|stop receiving)\b/i.test(text)) {
+      return NextResponse.json({ error: "Add a clear unsubscribe instruction before sending outreach." }, { status: 400 });
+    }
+
     let sendAttemptId: string | null = null;
     if (body?.test !== true) {
       // Identical recipient + subject + message can only be submitted once per UTC day.
@@ -83,9 +87,6 @@ export async function POST(req: NextRequest) {
       sendAttemptId = attempt.id;
     }
 
-    if (body?.test !== true && !/(^|\n)\s*(unsubscribe|stop receiving)\b/i.test(text)) {
-      return NextResponse.json({ error: "Add a clear unsubscribe instruction before sending outreach." }, { status: 400 });
-    }
 
     let response: Response;
     try {
