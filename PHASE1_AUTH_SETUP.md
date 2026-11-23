@@ -1,34 +1,23 @@
-# LeadPilot Phase 1 authentication setup
+# LeadPilot owner login and optional Supabase setup
 
-This branch adds Supabase email/password accounts, session validation in middleware, protected API access, and authenticated email sending. The dashboard includes sign-out.
+## Owner login
+The owner signs in with email and password using an independent signed session. Public account registration is disabled.
 
-## Configure Supabase
-1. Create a Supabase project and enable Email authentication.
-2. Set Site URL to your deployed app URL.
-3. Add redirect URLs for `https://YOUR-APP/auth/callback` and local `http://localhost:3000/auth/callback`.
-4. Copy the Project URL and anon/public key.
+Set these server-side environment variables in Vercel for the Preview deployment before testing:
+- `LEADPILOT_OWNER_EMAIL` (defaults to `tnwokobia@gmail.com`)
+- `LEADPILOT_ACCESS_PASSWORD` (choose a strong private password)
+- `LEADPILOT_SESSION_SECRET` (use a long, random secret; keep it private)
 
-## Configure Vercel
-Set these environment variables for the environments you use:
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `HUNTER_API_KEY` (if using Hunter)
-- `RESEND_API_KEY` and `RESEND_FROM_EMAIL` (if using email sending)
+The session cookie is HttpOnly, Secure in production, SameSite=Strict, and expires after 12 hours. Never commit passwords or session secrets.
 
-Never expose or add the Supabase service-role key to frontend variables.
+## Supabase
+Supabase dependencies, client/server helpers, SQL migrations and cloud CRM implementation are retained for future use. Supabase is not required for owner sign-in. Cloud CRM sync still requires a configured Supabase project, its migrations, and a valid Supabase user/workspace session; it is not enabled by the independent owner login.
 
-## Security changes in this branch
-- Middleware checks Supabase user sessions using `auth.getUser()` and blocks protected pages/API requests when unauthenticated.
-- Legacy shared-password login is disabled.
-- Email sending now requires a valid Supabase session; the old owner send-token header and dashboard token field have been removed.
-- Email sends still require explicit approval in the request and keep the unsubscribe instruction check for non-test sends.
-- Dashboard has a sign-out control.
+## AI lead qualification
+Set `GEMINI_API_KEY` in Vercel Preview to enable the AI qualification endpoint. The default model is `gemini-2.5-flash`; `GEMINI_QUALIFICATION_MODEL` can override it.
 
-## Phase 2: cloud CRM setup
-The dashboard now includes authenticated cloud snapshot sync for its existing company/contact CRM structure. Apply the migration `supabase/migrations/202611230001_crm_cloud_sync.sql` in the Supabase SQL Editor after the initial schema migration. The API uses the signed-in user session and the workspace membership row; row-level security limits each snapshot to members of that workspace. Browser localStorage remains as a fallback and is used to seed a new cloud workspace when no cloud snapshot exists.
+## Other integrations
+Set `HUNTER_API_KEY` for contact discovery and `RESEND_API_KEY` plus `RESEND_FROM_EMAIL` for email delivery, as required.
 
-## Important limitations
-Cloud sync is not active until both SQL migrations have been applied to the Supabase project and the branch has been tested and deployed. The current snapshot approach preserves the dashboard data structure, but it is not yet a normalized relational CRM: individual leads, companies, campaigns and outreach events are not separately queryable database records. Workspace provisioning, RLS isolation, first-login migration, concurrent edits and multi-user workspace behavior still require testing.
-
-## Before deployment
-Run `npm install`, `npm run typecheck`, and `npm run build`. Test sign-up, email confirmation, sign-in, sign-out, protected page/API access, authenticated test email, and authenticated approved prospect email. These checks have not yet been run in this environment.
+## Deployment checks
+Run `npm install`, `npm run typecheck`, and `npm run build`. Test owner login, logout, protected page/API access, qualification with a valid Gemini key, and existing prospect discovery. Production must not be updated until Preview passes these checks and the owner approves the release.
