@@ -4,7 +4,7 @@ import { createClient } from "../../../lib/supabase/server";
 export const runtime = "nodejs";
 
 function validEmail(value: string) {
-  return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 export async function POST(req: NextRequest) {
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     if (body?.approved !== true) return NextResponse.json({ error: "Explicit approval is required before sending." }, { status: 400 });
     if (!validEmail(to) || !subject || !text) return NextResponse.json({ error: "A valid recipient, subject and message are required." }, { status: 400 });
-    if (body?.test !== true && !/(^|\\n)\\s*(unsubscribe|stop receiving)\\b/i.test(text)) {
+    if (body?.test !== true && !/(^|\n)\s*(unsubscribe|stop receiving)\b/i.test(text)) {
       return NextResponse.json({ error: "Add a clear unsubscribe instruction before sending outreach." }, { status: 400 });
     }
 
