@@ -1,6 +1,6 @@
 # LeadPilot Phase 1 authentication setup
 
-This branch adds Supabase email/password auth and middleware session checks. It is not yet a finished SaaS migration: CRM leads are still browser-local, and email sending is still using the legacy send-token flow pending a separate migration.
+This branch adds Supabase email/password accounts, session validation in middleware, protected API access, and authenticated email sending. The dashboard includes sign-out.
 
 ## Configure Supabase
 1. Create a Supabase project and enable Email authentication.
@@ -12,14 +12,20 @@ This branch adds Supabase email/password auth and middleware session checks. It 
 Set these environment variables for the environments you use:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `HUNTER_API_KEY` (if using Hunter)
+- `RESEND_API_KEY` and `RESEND_FROM_EMAIL` (if using email sending)
 
-Never expose or add the service-role key to frontend variables.
+Never expose or add the Supabase service-role key to frontend variables.
+
+## Security changes in this branch
+- Middleware checks Supabase user sessions using `auth.getUser()` and blocks protected pages/API requests when unauthenticated.
+- Legacy shared-password login is disabled.
+- Email sending now requires a valid Supabase session; the old owner send-token header and dashboard token field have been removed.
+- Email sends still require explicit approval in the request and keep the unsubscribe instruction check for non-test sends.
+- Dashboard has a sign-out control.
+
+## Important limitations
+This is not yet a completed SaaS migration. Leads and discovered contacts are still saved in browser localStorage; no cloud sync or cross-device CRM exists yet. Workspace provisioning and database RLS policies need testing, and leads/companies/campaigns still need to be migrated into per-workspace Supabase storage.
 
 ## Before deployment
-Run `npm install`, `npm run typecheck`, and `npm run build`. Test account creation, email confirmation, sign-in, sign-out, protected page/API access. This environment has no build runner, so those checks have not been performed.
-
-## Remaining Phase 1 work
-- Review and test workspace provisioning and RLS SQL.
-- Move lead/company/campaign data from browser storage into Supabase per-user workspaces.
-- Replace legacy send-token UI/API with authenticated-session authorization.
-- Verify logout UI integration and API coverage.
+Run `npm install`, `npm run typecheck`, and `npm run build`. Test sign-up, email confirmation, sign-in, sign-out, protected page/API access, authenticated test email, and authenticated approved prospect email. These checks have not yet been run in this environment.
