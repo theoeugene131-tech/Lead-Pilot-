@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
-import { createClient } from "../../../../lib/supabase/server";
+import { OWNER_SESSION_COOKIE } from "../../../../lib/server/owner-session";
 
 export const runtime = "nodejs";
 
 export async function POST() {
-  try {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: "Could not complete sign out." }, { status: 503 });
-  }
+  const response = NextResponse.json({ success: true });
+  response.cookies.set(OWNER_SESSION_COOKIE, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    path: "/",
+    maxAge: 0
+  });
+  return response;
 }
