@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
 const PUBLIC_PATHS = new Set([
-  "/", "/login", "/api/auth/login", "/api/auth/register",
+  "/", "/login", "/api/auth/login",
   "/api/auth/logout", "/auth/callback",
 ]);
 
