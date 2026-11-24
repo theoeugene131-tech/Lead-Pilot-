@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { enforceApiQuota } from "../../../lib/server/usage";
 
 export const runtime = "nodejs";
 export const maxDuration = 20;
@@ -13,6 +14,8 @@ export async function POST(req: NextRequest) {
     const requestedLocation = String(body?.location || "").trim();
     const location = /^(worldwide|world wide|global|all countries)$/i.test(requestedLocation) ? "" : requestedLocation;
     if (query.length < 8 || query.length > 500) return NextResponse.json({ error: "Describe your ideal customers in 8–500 characters." }, { status: 400 });
+    const quotaResponse = await enforceApiQuota("discover");
+    if (quotaResponse) return quotaResponse;
     const exclusionInstruction = "Find commercially operated private-sector businesses that are likely to buy the described product or service. Exclude government bodies, ministries, departments, public agencies, municipal or state authorities, public-sector services, schools, colleges, universities, educational institutions, hospitals, clinics, charities, non-profits, NGOs, foundations, religious organisations, trade associations, and public institutions.";
     const searchQuery = [query, offer, location ? "located in " + location : "", exclusionInstruction].filter(Boolean).join(". ");
     const response = await fetch("https://api.hunter.io/v2/discover", {

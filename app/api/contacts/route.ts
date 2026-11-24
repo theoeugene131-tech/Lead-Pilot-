@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { enforceApiQuota } from "../../../lib/server/usage";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -11,6 +12,8 @@ export async function POST(req: NextRequest) {
     const domain = String(body?.domain || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "");
     if (!/^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain))
       return NextResponse.json({ error: "A valid company domain is required." }, { status: 400 });
+    const quotaResponse = await enforceApiQuota("contacts");
+    if (quotaResponse) return quotaResponse;
     const url = new URL("https://api.hunter.io/v2/domain-search");
     url.searchParams.set("domain", domain);
     url.searchParams.set("decision_maker", "true");

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { enforceApiQuota } from "../../../lib/server/usage";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -11,6 +12,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const prospectHash = String(body?.prospectHash || "");
     if (!/^[a-f0-9]{20,200}$/i.test(prospectHash)) return NextResponse.json({ error: "This prospect does not have a valid email-reveal reference." }, { status: 400 });
+    const quotaResponse = await enforceApiQuota("reveal");
+    if (quotaResponse) return quotaResponse;
     const tokenForm = new URLSearchParams({ grant_type: "client_credentials", client_id: clientId, client_secret: clientSecret });
     const auth = await fetch("https://api.snov.io/v1/oauth/access_token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: tokenForm, cache: "no-store", signal: AbortSignal.timeout(8000) });
     const authData = await auth.json().catch(() => ({}));
