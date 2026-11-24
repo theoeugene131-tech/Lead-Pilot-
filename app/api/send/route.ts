@@ -1,19 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "node:crypto";
 import { createClient } from "../../../lib/supabase/server";
+import { OWNER_SESSION_COOKIE, verifyOwnerSession } from "../../../lib/server/owner-session";
 
 export const runtime = "nodejs";
 
 function validEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value);
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    const ownerSession = await verifyOwnerSession(req.cookies.get(OWNER_SESSION_COOKIE)?.value);
+    if (!ownerSession) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+
+    const body = await req.json();
+    const to = String(body?.to || "").trim().slice(0, 254);
+    const subject = String(body?.subject || "").trim().slice(0, 180);
+    const text = String(body?.text || "").trim().slice(0, 12000);
+    const isTest = body?.test === true;
+
+    if (body?.approved !== true) return NextResponse.json({ error: "Explicit approval is required before sending." }, { status: 400 });
+    if (!validEmail(to) || !subject || !text) return NextResponse.json({ error: "A valid recipient, subject and message are required." }, { status: 400 });
+    if (!isTest && !/(^|\\n)\\s*(unsubscribe|stop receiving)\\b/i.test(text)) {
+      return NextResponse.json({ error: "Add a clear unsubscribe instruction before sending outreach." }, { status: 400 });
     }
 
     const apiKey = process.env.RESEND_API_KEY;
@@ -22,14 +32,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email sending is not configured. Check the Resend API key and verified sender address in Vercel." }, { status: 503 });
     }
 
-    const body = await req.json();
-    const to = String(body?.to || "").trim().slice(0, 254);
-    const subject = String(body?.subject || "").trim().slice(0, 180);
-    const text = String(body?.text || "").trim().slice(0, 12000);
+    let supabase: ReturnType<typeof createClient> | null = null;
+    let userId: string | null = null;
+    let sendAttemptId: string | null = null;
 
-    if (body?.approved !== true) return NextResponse.json({ error: "Explicit approval is required before sending." }, { status: 400 });
-    if (!validEmail(to) || !subject || !text) return NextResponse.json({ error: "A valid recipient, subject and message are required." }, { status: 400 });
-    if (body?.test !== true) {
+    if (!isTest) {
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        return NextResponse.json({ error: "Test emails are available with owner login. Prospect emails require Supabase cloud CRM so LeadPilot can check workspace suppression, do-not-contact and duplicate-send records. Configure Supabase before sending to prospects." }, { status: 503 });
+      }
+      supabase = createClient();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        return NextResponse.json({ error: "Prospect email sending requires an active Supabase workspace session. Your independent owner login does not create a cloud CRM session." }, { status: 503 });
+      }
+      userId = user.id;
+
       const { data: memberships, error: membershipError } = await supabase
         .from("workspace_members")
         .select("workspace_id")
@@ -48,51 +65,30 @@ export async function POST(req: NextRequest) {
       if ((suppressionCheck.data?.length || 0) > 0 || (leadCheck.data?.length || 0) > 0) {
         return NextResponse.json({ error: "This address is on your workspace suppression or do-not-contact list. Email was not sent." }, { status: 409 });
       }
-    }
 
-    if (body?.test !== true && !/(^|\n)\s*(unsubscribe|stop receiving)\b/i.test(text)) {
-      return NextResponse.json({ error: "Add a clear unsubscribe instruction before sending outreach." }, { status: 400 });
-    }
-
-    let sendAttemptId: string | null = null;
-    if (body?.test !== true) {
-      // Identical recipient + subject + message can only be submitted once per UTC day.
       const day = new Date().toISOString().slice(0, 10);
       const requestFingerprint = createHash("sha256")
-        .update([to.toLowerCase(), subject, text, day].join("\n"))
+        .update([to.toLowerCase(), subject, text, day].join("\\n"))
         .digest("hex");
       const { data: attempt, error: attemptError } = await supabase
         .from("email_send_attempts")
-        .insert({
-          user_id: user.id,
-          recipient: to.toLowerCase(),
-          request_fingerprint: requestFingerprint,
-          status: "pending",
-        })
+        .insert({ user_id: user.id, recipient: to.toLowerCase(), request_fingerprint: requestFingerprint, status: "pending" })
         .select("id")
         .single();
-
       if (attemptError?.code === "23505") {
-        return NextResponse.json(
-          { error: "This same message has already been submitted to this recipient today. Check your Resend activity before trying again." },
-          { status: 409 }
-        );
+        return NextResponse.json({ error: "This same message has already been submitted to this recipient today. Check your Resend activity before trying again." }, { status: 409 });
       }
       if (attemptError || !attempt?.id) {
-        return NextResponse.json(
-          { error: "Could not reserve this send safely. Apply the latest database migration and try again." },
-          { status: 503 }
-        );
+        return NextResponse.json({ error: "Could not reserve this send safely. Apply the latest database migration and try again." }, { status: 503 });
       }
       sendAttemptId = attempt.id;
     }
-
 
     let response: Response;
     try {
       response = await fetch("https://api.resend.com/emails", {
         method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        headers: { Authorization: "Bearer " + apiKey, "Content-Type": "application/json" },
         body: JSON.stringify({ from, to: [to], subject, text }),
         signal: AbortSignal.timeout(12000)
       });
@@ -105,12 +101,12 @@ export async function POST(req: NextRequest) {
 
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
-      if (sendAttemptId) {
+      if (sendAttemptId && supabase) {
         await supabase.from("email_send_attempts").update({ status: "failed" }).eq("id", sendAttemptId);
       }
       return NextResponse.json({ error: result?.message || "The email provider rejected the message." }, { status: response.status >= 500 ? 502 : 400 });
     }
-    if (sendAttemptId) {
+    if (sendAttemptId && supabase) {
       await supabase.from("email_send_attempts").update({ status: "sent", provider_message_id: result?.id || null }).eq("id", sendAttemptId);
     }
     return NextResponse.json({ success: true, id: result?.id || null });
