@@ -44,7 +44,7 @@ export default function LoginPage() {
         <input id="password" type="password" autoComplete="current-password" required value={password} onChange={event => setPassword(event.target.value)} style={{ width: "100%", height: 44, border: "1px solid #dfe4ec", borderRadius: 8, padding: "0 12px", boxSizing: "border-box" }} />
         {error && <p role="alert" style={{ color: "#b42318", fontSize: 12 }}>{error}</p>}
         <button disabled={busy} style={{ width: "100%", height: 44, border: 0, borderRadius: 8, marginTop: 18, background: "#6558d9", color: "#fff", fontWeight: 700 }}>{busy ? "Please wait…" : "Sign in"}</button>
-        <p style={{ color: "#758096", fontSize: 12, lineHeight: 1.5, marginTop: 16 }}>Owner account setup and password recovery are managed securely through the Supabase project dashboard.</p>
+        <p style={{ color: "#758096", fontSize: 12, lineHeight: 1.5, marginTop: 16 }}>Password changes are managed by updating the owner login environment settings.</p>
       </form>
     </main>
   );
