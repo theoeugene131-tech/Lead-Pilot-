@@ -6,7 +6,7 @@ import { OWNER_SESSION_COOKIE, verifyOwnerSession } from "../../../lib/server/ow
 export const runtime = "nodejs";
 
 function validEmail(value: string) {
-  return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 export async function POST(req: NextRequest) {
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
     if (body?.approved !== true) return NextResponse.json({ error: "Explicit approval is required before sending." }, { status: 400 });
     if (!validEmail(to) || !subject || !text) return NextResponse.json({ error: "A valid recipient, subject and message are required." }, { status: 400 });
-    if (!isTest && !/(^|\\n)\\s*(unsubscribe|stop receiving)\\b/i.test(text)) {
+    if (!isTest && !/(^|\n)\s*(unsubscribe|stop receiving)\b/i.test(text)) {
       return NextResponse.json({ error: "Add a clear unsubscribe instruction before sending outreach." }, { status: 400 });
     }
 
@@ -33,7 +33,6 @@ export async function POST(req: NextRequest) {
     }
 
     let supabase: ReturnType<typeof createClient> | null = null;
-    let userId: string | null = null;
     let sendAttemptId: string | null = null;
 
     if (!isTest) {
@@ -45,7 +44,6 @@ export async function POST(req: NextRequest) {
       if (authError || !user) {
         return NextResponse.json({ error: "Prospect email sending requires an active Supabase workspace session. Your independent owner login does not create a cloud CRM session." }, { status: 503 });
       }
-      userId = user.id;
 
       const { data: memberships, error: membershipError } = await supabase
         .from("workspace_members")
@@ -68,7 +66,7 @@ export async function POST(req: NextRequest) {
 
       const day = new Date().toISOString().slice(0, 10);
       const requestFingerprint = createHash("sha256")
-        .update([to.toLowerCase(), subject, text, day].join("\\n"))
+        .update([to.toLowerCase(), subject, text, day].join("\n"))
         .digest("hex");
       const { data: attempt, error: attemptError } = await supabase
         .from("email_send_attempts")
