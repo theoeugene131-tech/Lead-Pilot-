@@ -1,5 +1,5 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
+import { OWNER_SESSION_COOKIE, verifyOwnerSession } from "./lib/server/owner-session";
 
 const PUBLIC_PATHS = new Set([
   "/", "/login", "/api/auth/login",
@@ -15,41 +15,17 @@ export async function middleware(request: NextRequest) {
     /\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js)$/.test(path)
   ) return NextResponse.next();
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) {
-    return path.startsWith("/api/")
-      ? NextResponse.json({ error: "Supabase authentication is not configured." }, { status: 503 })
-      : new NextResponse("Supabase authentication is not configured.", { status: 503 });
-  }
-
-  let response = NextResponse.next({ request });
-  const supabase = createServerClient(url, key, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
-      setAll(cookiesToSet: Array<{ name: string; value: string; options?: any }>) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
-      },
-    },
-  });
-
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (!error && user) return response;
+  const token = request.cookies.get(OWNER_SESSION_COOKIE)?.value;
+  if (await verifyOwnerSession(token)) return NextResponse.next();
 
   if (path.startsWith("/api/")) {
-    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    return NextResponse.json({ error: "Your owner session has expired. Please sign in again." }, { status: 401 });
   }
 
   const loginUrl = request.nextUrl.clone();
   loginUrl.pathname = "/login";
   loginUrl.searchParams.set("next", path);
-  const redirect = NextResponse.redirect(loginUrl);
-  response.cookies.getAll().forEach(cookie => redirect.cookies.set(cookie));
-  return redirect;
+  return NextResponse.redirect(loginUrl);
 }
 
 export const config = {
