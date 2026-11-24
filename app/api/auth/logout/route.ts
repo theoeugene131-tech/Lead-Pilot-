@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
+import { createClient } from "../../../../lib/supabase/server";
+
+export const runtime = "nodejs";
 
 export async function POST() {
-  const response = NextResponse.json({ success: true });
-  response.cookies.set("leadpilot_session", "", {
-    httpOnly: true, secure: process.env.NODE_ENV === "production",
-    sameSite: "strict", path: "/", maxAge: 0
-  });
-  return response;
+  try {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json({ error: "Could not complete sign out." }, { status: 503 });
+  }
 }
